@@ -47,6 +47,13 @@ repos:
         entry: pylint
         types: [python]
 
+      - id: pydocstyle
+        name: python - pydocstyle
+        stages: [commit]
+        language: system
+        entry: pydocstyle
+        types: [python]
+
       - id: prospector
         name: python - prospector
         stages: [commit]
