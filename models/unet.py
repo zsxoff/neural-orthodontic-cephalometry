@@ -127,7 +127,7 @@ class UNet(tf.keras.Model):
 class UNetConvDown(tf.keras.Model):
     """U-Net Double Convolution 2D module."""
 
-    def __init__(self, filters, convs_dropout=0.10, final_dropout=0.10):
+    def __init__(self, filters, convs_dropout=0.0, final_dropout=0.0):
         """
         Init U-Net Double Convolution Down model.
 
@@ -181,7 +181,7 @@ class UNetConvDown(tf.keras.Model):
 class UNetConvUp(tf.keras.Model):
     """U-Net Double Convolution Transpose 2D module."""
 
-    def __init__(self, filters, convs_dropout=0.10, final_dropout=0.10):
+    def __init__(self, filters, convs_dropout=0.0, final_dropout=0.0):
         """
         Init U-Net Double Convolution Up model.
 
