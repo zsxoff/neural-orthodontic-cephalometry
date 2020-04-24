@@ -142,11 +142,14 @@ class UNetConvDown(tf.keras.Model):
         """
         super().__init__()
 
-        self.c_1 = tf.keras.layers.Conv2D(filters, 3, 1, "SAME")
+        padding = [[0, 0], [0, 0], [0, 0], [0, 0]]
+
+        self.c_1 = tf.keras.layers.Conv2D(filters, 3, 1, padding=padding)
         self.a_1 = tf.keras.layers.PReLU()
         self.n_1 = tf.keras.layers.BatchNormalization()
         self.d_1 = tf.keras.layers.Dropout(convs_dropout)
-        self.c_2 = tf.keras.layers.Conv2D(filters, 3, 1, "SAME")
+
+        self.c_2 = tf.keras.layers.Conv2D(filters, 3, 1, padding=padding)
         self.a_2 = tf.keras.layers.PReLU()
         self.n_2 = tf.keras.layers.BatchNormalization()
         self.d_2 = tf.keras.layers.Dropout(final_dropout)
@@ -162,8 +165,13 @@ class UNetConvDown(tf.keras.Model):
             tensorflow.Tensor: Output tensor.
 
         """
+        padding = [[0, 0], [1, 1], [1, 1], [0, 0]]
+
+        inputs = tf.pad(inputs, tf.constant(padding), "SYMMETRIC")
         inputs = self.a_1(self.c_1(inputs))
         inputs = self.d_1(self.n_1(inputs))
+
+        inputs = tf.pad(inputs, tf.constant(padding), "SYMMETRIC")
         inputs = self.a_2(self.c_2(inputs))
         inputs = self.d_2(self.n_2(inputs))
 
