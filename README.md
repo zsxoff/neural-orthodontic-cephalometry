@@ -19,4 +19,4 @@ See more at:
 
 ## License
 
-See [LICENSE](<https://github.com/zsxoff/neural-orthodontic-cephalometry/blob/master/LICENSE>) file.
+This project is licensed under the terms of the [MIT](https://opensource.org/licenses/MIT) license (see [LICENSE](<https://github.com/zsxoff/neural-orthodontic-cephalometry/blob/master/LICENSE>) file).
