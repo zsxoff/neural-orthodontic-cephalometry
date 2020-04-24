@@ -12,12 +12,12 @@ https://opensource.org/licenses/MIT
 
 """
 
-from pathlib import Path
+import pathlib
 
 import numpy as np
 import pandas as pd
+import sklearn.model_selection
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
 from tabulate import tabulate
 
 from constants.classes import CLASSES
@@ -30,10 +30,9 @@ from models.unet import UNet
 # TODO Move hyperparameters to YAML.
 
 # Data paths.
-DATA_PWD = Path("/home/zsxoff/neural-orthodontic-dataset")
+DATA_PWD = pathlib.Path("/home/zsxoff/neural-orthodontic-dataset")
 
 EXPERT_NAME = "expert_1"
-PROJECT_NAME = f"result_{EXPERT_NAME}"
 
 PWD_IMAGES = DATA_PWD / "images"
 PWD_MARKUP = DATA_PWD / "coords-npz" / EXPERT_NAME
@@ -79,7 +78,9 @@ def _get_sorted_paths(path, ext):
 
     """
     return list(
-        map(lambda x: x.as_posix(), sorted(Path(path).glob(f"*.{ext}")))
+        map(
+            lambda x: x.as_posix(), sorted(pathlib.Path(path).glob(f"*.{ext}"))
+        )
     )
 
 
@@ -206,45 +207,18 @@ def normalize(image, masks):
     return image, masks
 
 
-# def train_model(X_train, X_test, y_train, y_test, save_dir):
-#     pass
+def train_model(X_train, X_test, y_train, y_test, save_dir):
+    """
+    Run train model process.
 
+    Args:
+        X_train (list): List of strings X_train files patches.
+        X_test (list): List of strings X_test files patches.
+        y_train (list): List of strings y_train files patches.
+        y_test (list): List of strings y_test files patches.
+        save_dir (pathlib.PosixPath): Path for save results.
 
-def main():
-    """Start training model process."""
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    # LOAD DATA.
-
-    # Init data dirs.
-    paths_images = get_images_paths(PWD_IMAGES)
-    paths_markup = get_markup_paths(PWD_MARKUP)
-
-    # TODO Move test size on top of file.
-    # TODO KFolds split.
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        paths_images,
-        paths_markup,
-        test_size=0.20,
-        shuffle=False,
-        random_state=RANDOM_SEED,
-    )
-
-    # kf = KFold(n_splits=5, shuffle=False, random_state=None)
-    #
-    # KFOLD_NUMBER = 0
-    #
-    # for train_index, test_index in kf.split(paths_images, paths_markup):
-    #
-    #     KFOLD_NUMBER += 1
-    #     PROJECT_NAME += "_" + str(KFOLD_NUMBER)
-    #
-    #     X_train = [paths_images[i] for i in train_index]
-    #     y_train = [paths_markup[i] for i in train_index]
-    #
-    #     X_test = [paths_images[i] for i in test_index]
-    #     y_test = [paths_markup[i] for i in test_index]
-
+    """
     # Split train by valid and train.
     X_valid, X_train = X_train[:VALID_SIZE], X_train[VALID_SIZE:]
     y_valid, y_train = y_train[:VALID_SIZE], y_train[VALID_SIZE:]
@@ -284,13 +258,12 @@ def main():
     # TRAIN MODEL.
 
     # Init paths.
-    results_dir = Path("results") / PROJECT_NAME
-    results_dir.mkdir(parents=True, exist_ok=True)
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-    path_weights = (results_dir / "weights.hdf5").as_posix()
-    path_history = (results_dir / "training.csv").as_posix()
-    path_predict_fulls = (results_dir / "predict_fulls.csv").as_posix()
-    path_predict_means = (results_dir / "predict_means.csv").as_posix()
+    path_weights = (save_dir / "weights.hdf5").as_posix()
+    path_history = (save_dir / "training.csv").as_posix()
+    path_predict_fulls = (save_dir / "predict_fulls.csv").as_posix()
+    path_predict_means = (save_dir / "predict_means.csv").as_posix()
 
     # Init callbacks.
     callback_save_best_weights = tf.keras.callbacks.ModelCheckpoint(
@@ -350,7 +323,7 @@ def main():
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # COMPARE WITH REAL COORDINATES.
 
-    X_test_names = [Path(x).stem for x in X_test]
+    X_test_names = [pathlib.Path(x).stem for x in X_test]
     result_array = np.zeros((len_test, CLASSES_COUNT))
 
     for k, predict_array in enumerate(predict_dataset):
@@ -374,34 +347,76 @@ def main():
             x_t, y_t = np.fromfile(filename, sep=",")
 
             # Compute distance.
+            # ! NOTE: in this dataset, 1 cm == 11 pix.
             distance = np.sqrt((x_t - x_p) ** 2 + (y_t - y_p) ** 2) / 11.0
 
             # Save result.
             result_array[k][channel_number] = distance
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    # DUMP RESULTS.
+
     # Dump full results to CSV.
-    results_fulls = pd.DataFrame(columns=["filename", *CLASSES])
+    results = pd.DataFrame(columns=["filename", *CLASSES])
+
     for n, filename in enumerate(X_test_names):
+
+        # Write rows of matrix to CSV.
         named_results = dict(zip(CLASSES, list(result_array[n])))
         named_results["filename"] = filename
-        results_fulls = results_fulls.append(named_results, ignore_index=True)
 
-    results_fulls.to_csv(path_predict_fulls, index=False)
+        results = results.append(named_results, ignore_index=True)
+
+    results.to_csv(path_predict_fulls, index=False, sep=";")
 
     # Dump mean results to CSV.
-    results_means = pd.DataFrame(columns=["class", "mean", "max"])
+    results = pd.DataFrame(columns=["class", "mean", "max"])
 
     means = np.mean(result_array, axis=0)
     maxes = np.max(result_array, axis=0)
 
-    for label, val_mean, val_max in zip(CLASSES, means, maxes):
-        results_means = results_means.append(
-            {"class": label, "mean": val_mean, "max": val_max},
+    for class_label, val_mean, val_max in zip(CLASSES, means, maxes):
+        results = results.append(
+            {"class": class_label, "mean": val_mean, "max": val_max},
             ignore_index=True,
         )
 
-    results_means.to_csv(path_predict_means, index=False)
-    print(results_means)
+    results.to_csv(path_predict_means, index=False, sep=";")
+    print(results)
+
+
+def main():
+    """Start training model process."""
+    paths_images = get_images_paths(PWD_IMAGES)
+    paths_markup = get_markup_paths(PWD_MARKUP)
+
+    kf = sklearn.model_selection.KFold(
+        n_splits=5, shuffle=False, random_state=None
+    )
+
+    kfold_current_number = 0
+
+    for train_index, test_index in kf.split(paths_images, paths_markup):
+
+        # Init results path.
+        kfold_current_number += 1
+        save_dir = pathlib.Path("results") / f"kfold_{kfold_current_number}"
+
+        # Split data.
+        X_train = [paths_images[x] for x in train_index]
+        y_train = [paths_markup[x] for x in train_index]
+
+        X_test = [paths_images[x] for x in test_index]
+        y_test = [paths_markup[x] for x in test_index]
+
+        # Run model training.
+        train_model(
+            X_train=X_train,
+            X_test=X_test,
+            y_train=y_train,
+            y_test=y_test,
+            save_dir=save_dir,
+        )
 
 
 if __name__ == "__main__":
