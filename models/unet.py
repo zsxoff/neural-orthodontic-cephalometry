@@ -55,7 +55,17 @@ class UNet(tf.keras.Model):
         self.conv_d_5 = UNetConvDown(filters[4])
 
         # Transpose convolution, up-sampling and concatenation.
-        self.upsample = tf.keras.layers.UpSampling2D(interpolation="bilinear")
+        self.up_1 = tf.keras.layers.Conv2DTranspose(filters[3], 3, 2, "SAME")
+        self.up_1_act = tf.keras.layers.ReLU()
+
+        self.up_2 = tf.keras.layers.Conv2DTranspose(filters[2], 3, 2, "SAME")
+        self.up_2_act = tf.keras.layers.ReLU()
+
+        self.up_3 = tf.keras.layers.Conv2DTranspose(filters[1], 3, 2, "SAME")
+        self.up_3_act = tf.keras.layers.ReLU()
+
+        self.up_4 = tf.keras.layers.Conv2DTranspose(filters[0], 3, 2, "SAME")
+        self.up_4_act = tf.keras.layers.ReLU()
 
         self.conv_u_1 = UNetConvUp(filters[3])
         self.concat_1 = tf.keras.layers.Concatenate()
@@ -100,19 +110,27 @@ class UNet(tf.keras.Model):
         inputs = self.conv_d_5(inputs)
 
         # Upsample and concatenation.
-        inputs = self.upsample(inputs)
+        inputs = self.up_1(inputs)
+        inputs = self.up_1_act(inputs)
+
         inputs = self.concat_1([inputs, down_conv_4])
         inputs = self.conv_u_1(inputs)
 
-        inputs = self.upsample(inputs)
+        inputs = self.up_2(inputs)
+        inputs = self.up_2_act(inputs)
+
         inputs = self.concat_2([inputs, down_conv_3])
         inputs = self.conv_u_2(inputs)
 
-        inputs = self.upsample(inputs)
+        inputs = self.up_3(inputs)
+        inputs = self.up_3_act(inputs)
+
         inputs = self.concat_3([inputs, down_conv_2])
         inputs = self.conv_u_3(inputs)
 
-        inputs = self.upsample(inputs)
+        inputs = self.up_4(inputs)
+        inputs = self.up_4_act(inputs)
+
         inputs = self.concat_4([inputs, down_conv_1])
         inputs = self.conv_u_4(inputs)
 
@@ -142,14 +160,12 @@ class UNetConvDown(tf.keras.Model):
         """
         super().__init__()
 
-        padding = [[0, 0], [0, 0], [0, 0], [0, 0]]
-
-        self.c_1 = tf.keras.layers.Conv2D(filters, 3, 1, padding=padding)
+        self.c_1 = tf.keras.layers.Conv2D(filters, 3, 1, padding="SAME")
         self.a_1 = tf.keras.layers.PReLU()
         self.n_1 = tf.keras.layers.BatchNormalization()
         self.d_1 = tf.keras.layers.Dropout(convs_dropout)
 
-        self.c_2 = tf.keras.layers.Conv2D(filters, 3, 1, padding=padding)
+        self.c_2 = tf.keras.layers.Conv2D(filters, 3, 1, padding="SAME")
         self.a_2 = tf.keras.layers.PReLU()
         self.n_2 = tf.keras.layers.BatchNormalization()
         self.d_2 = tf.keras.layers.Dropout(final_dropout)
@@ -165,13 +181,8 @@ class UNetConvDown(tf.keras.Model):
             tensorflow.Tensor: Output tensor.
 
         """
-        padding = [[0, 0], [1, 1], [1, 1], [0, 0]]
-
-        inputs = tf.pad(inputs, tf.constant(padding), "SYMMETRIC")
         inputs = self.a_1(self.c_1(inputs))
         inputs = self.d_1(self.n_1(inputs))
-
-        inputs = tf.pad(inputs, tf.constant(padding), "SYMMETRIC")
         inputs = self.a_2(self.c_2(inputs))
         inputs = self.d_2(self.n_2(inputs))
 
@@ -200,6 +211,7 @@ class UNetConvUp(tf.keras.Model):
         self.a_1 = tf.keras.layers.PReLU()
         self.n_1 = tf.keras.layers.BatchNormalization()
         self.d_1 = tf.keras.layers.Dropout(convs_dropout)
+
         self.c_2 = tf.keras.layers.Conv2DTranspose(filters, 3, 1, "SAME")
         self.a_2 = tf.keras.layers.PReLU()
         self.n_2 = tf.keras.layers.BatchNormalization()
