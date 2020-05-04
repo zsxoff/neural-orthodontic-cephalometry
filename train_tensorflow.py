@@ -219,18 +219,10 @@ def train_model(X_train, X_test, y_train, y_test, save_dir):
         save_dir (pathlib.PosixPath): Path for save results.
 
     """
-    # Split train by valid and train.
-    X_valid, X_train = X_train[:VALID_SIZE], X_train[VALID_SIZE:]
-    y_valid, y_train = y_train[:VALID_SIZE], y_train[VALID_SIZE:]
-
-    len_train, len_test, len_valid = len(X_train), len(X_test), len(X_valid)
+    len_train, len_test = len(X_train), len(X_test)
 
     # Create datasets from data.
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train)).map(
-        load_data, num_parallel_calls=AUTOTUNE
-    )
-
-    valid_dataset = tf.data.Dataset.from_tensor_slices((X_valid, y_valid)).map(
         load_data, num_parallel_calls=AUTOTUNE
     )
 
@@ -245,12 +237,6 @@ def train_model(X_train, X_test, y_train, y_test, save_dir):
     train_dataset = train_dataset.batch(BATCH_SIZE)
     train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
 
-    valid_dataset = valid_dataset.map(normalize, num_parallel_calls=AUTOTUNE)
-    valid_dataset = valid_dataset.shuffle(len_valid * 2)
-    valid_dataset = valid_dataset.repeat()
-    valid_dataset = valid_dataset.batch(BATCH_SIZE)
-    valid_dataset = valid_dataset.prefetch(buffer_size=AUTOTUNE)
-
     test_dataset = test_dataset.map(normalize, num_parallel_calls=AUTOTUNE)
     test_dataset = test_dataset.batch(BATCH_SIZE)
 
@@ -262,6 +248,8 @@ def train_model(X_train, X_test, y_train, y_test, save_dir):
 
     path_weights = (save_dir / "weights.hdf5").as_posix()
     path_history = (save_dir / "training.csv").as_posix()
+    path_model = (save_dir / "model").as_posix()
+
     path_predict_fulls = (save_dir / "predict_fulls.csv").as_posix()
     path_predict_means = (save_dir / "predict_means.csv").as_posix()
 
@@ -306,10 +294,10 @@ def train_model(X_train, X_test, y_train, y_test, save_dir):
     if MODEL_RUN_TRAIN:
         model.fit(
             train_dataset,
-            validation_data=valid_dataset,
+            validation_data=test_dataset,
             epochs=EPOCHS,
             steps_per_epoch=len_train // BATCH_SIZE,
-            validation_steps=len_valid // BATCH_SIZE,
+            validation_steps=len_test // BATCH_SIZE,
             callbacks=[callback_save_best_weights, callback_csv_logger],
         )
 
@@ -319,6 +307,9 @@ def train_model(X_train, X_test, y_train, y_test, save_dir):
 
     # Make prediction.
     predict_dataset = model.predict(test_dataset)
+
+    # Save model.
+    model.save(path_model)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # COMPARE WITH REAL COORDINATES.
