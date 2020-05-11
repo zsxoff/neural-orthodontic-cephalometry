@@ -21,6 +21,8 @@ import tensorflow as tf
 from tabulate import tabulate
 
 from constants.classes import CLASSES
+
+# from models.cnn import CNN
 from models.unet import UNet
 
 # -----------------------------------------------------------------------------
@@ -30,7 +32,7 @@ from models.unet import UNet
 # TODO Move hyperparameters to YAML.
 
 # Data paths.
-DATA_PWD = pathlib.Path("/home/zsxoff/neural-orthodontic-dataset")
+DATA_PWD = pathlib.Path("../neural-orthodontic-dataset")
 
 EXPERT_NAME = "expert_1"
 
@@ -40,7 +42,7 @@ PWD_COORDS = DATA_PWD / "coords-txt" / EXPERT_NAME
 
 # Model config.
 BATCH_SIZE = 2
-EPOCHS = 128
+EPOCHS = 80
 VALID_SIZE = 10
 MODEL_LOAD_WEIGHTS = False
 MODEL_RUN_TRAIN = True
