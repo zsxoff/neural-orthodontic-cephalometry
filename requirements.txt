@@ -2,4 +2,4 @@ numpy==1.18.1
 pandas==1.0.3
 scikit_learn==0.22.2.post1
 tabulate==0.8.3
-tensorflow==2.1.0
+tensorflow==2.11.1
